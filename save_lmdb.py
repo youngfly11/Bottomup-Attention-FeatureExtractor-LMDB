@@ -30,11 +30,12 @@ msgpack_numpy.patch()
 @curry
 def load_npz(fname):
     try:
-        dump = np.load(fname)
+        dump = {}
+        dump['features'] = np.load(fname)
     except Exception as e:
         # corrupted file
         print(f'corrupted file {fname}', e)
-        dump = np.ones(3,10)
+        dump = {}
         nbb = 0
     name = basename(fname).split('.')[0]
     return name, dump

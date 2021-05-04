@@ -24,7 +24,7 @@ import pickle
 
 
 # Load VG Classes
-data_path = 'data/1600-400-20'
+data_path = 'demo/data/1600-400-20'
 
 vg_classes = []
 with open(os.path.join(data_path, 'objects_vocab.txt')) as f:
@@ -45,15 +45,24 @@ cfg.MODEL.RPN.POST_NMS_TOPK_TEST = 300
 cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.6
 cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.2
 # VG Weight
-cfg.MODEL.WEIGHTS = "./weights/faster_rcnn_from_caffe_attr_original.pkl"
+cfg.MODEL.WEIGHTS = "https://nlp1.cs.unc.edu/models/faster_rcnn_from_caffe_attr.pkl"
 predictor = DefaultPredictor(cfg)
 
+# with open('/root/dataspace/Flickr30k/flickr30k_annos/train.txt', 'r') as load_f:
+    # files = load_f.readlines()
+
+# with open('/root/dataspace/Flickr30k/flickr30k_annos/test.txt', 'r') as load_f:
+#     files.extend(load_f.readlines())
+    
+# files = [fl.split('\t')[0] for fl in files]
+
 files = glob.glob(f'/root/dataspace/Flickr30k/flickr30k-images/*.jpg')
+# files = [f'/root/dataspace/Flickr30k/flickr30k-images/{fl}.jpg' for fl in files]
 
 det_results={0.5:{}, 0.6:{}}
 
 for im_name in tqdm(files):
-
+    # im = cv2.imread("./demo/data/images/input.jpg")
     im = cv2.imread(im_name)
     basename = osp.basename(im_name).split('.')[0]
     raw_image = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
@@ -64,7 +73,7 @@ for im_name in tqdm(files):
         print("Original image size: ", (im_name, raw_height, raw_width))
         
         # Preprocessing
-        image = predictor.transform_gen.get_transform(raw_image).apply_image(raw_image)
+        image = predictor.transform_gen.get_transform(im).apply_image(im)
         print("Transformed image size: ", image.shape[:2])
         image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1))
         inputs = [{"image": image, "height": raw_height, "width": raw_width}]
@@ -101,7 +110,7 @@ for im_name in tqdm(files):
         # NMS
 
         for nms_thresh in np.arange(0.5, 0.7, 0.1):
-            instances, ids = fast_rcnn_inference_single_image(boxes, probs, image.shape[1:], score_thresh=0.05, nms_thresh=nms_thresh, topk_per_image=-1)    
+            instances, ids = fast_rcnn_inference_single_image(boxes, probs, image.shape[1:], score_thresh=0.1, nms_thresh=nms_thresh, topk_per_image=100)    
             instances = detector_postprocess(instances, raw_height, raw_width)
             roi_features = feature_pooled[ids].detach()
             max_attr_prob_v1 = max_attr_prob[ids].detach()
@@ -122,10 +131,10 @@ for im_name in tqdm(files):
         np.save(f"/root/dataspace/Flickr30k/flickr30k_feats/{basename}.npy", feature)
 
     
-with open('/root/dataspace/Flickr30k/flickr30k_annos/det_nms_0p5.pkl', 'wb') as dump_f:
+with open('/root/dataspace/Flickr30k/flickr30k_annos/det_score_0p1_nms_0p5.pkl', 'wb') as dump_f:
     pickle.dump(det_results[0.5], dump_f)
 
-with open('/root/dataspace/Flickr30k/flickr30k_annos/det_nms_0p6.pkl', 'wb') as dump_f:
+with open('/root/dataspace/Flickr30k/flickr30k_annos/det_score_0p1_nms_0p6.pkl', 'wb') as dump_f:
     pickle.dump(det_results[0.6], dump_f)
     
 
